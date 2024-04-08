@@ -8,104 +8,100 @@ class PostController
 {
     public function validatePost($inputData) {
         $errors = [];
-        $title = $inputData['title'];
-        $description = $inputData['description'];
+        $title = isset($inputData['title']) ? trim($inputData['title']) : '';
+        $description = isset($inputData['description']) ? trim($inputData['description']) : '';
 
-        if ($title) {
-            $title = htmlspecialchars($title, ENT_QUOTES|ENT_HTML5, 'UTF-8', true);
-            if (strlen($title) < 2) {
-                $errors['titleShort'] = 'title is too short';
-            }
-        } else {
-            $errors['titleRequired'] = 'title is required';
+        if (empty($title)) {
+            $errors['titleRequired'] = 'Title is required';
+        } elseif (strlen($title) < 2) {
+            $errors['titleShort'] = 'Title is too short';
         }
 
-        if ($description) {
-            $description = htmlspecialchars($description, ENT_QUOTES|ENT_HTML5, 'UTF-8', true);
-            if (strlen($description) < 2) {
-                $errors['descriptionShort'] = 'description is too short';
-            }
-        } else {
-            $errors['descriptionRequired'] = 'description is required';
+        if (empty($description)) {
+            $errors['descriptionRequired'] = 'Description is required';
+        } elseif (strlen($description) < 2) {
+            $errors['descriptionShort'] = 'Description is too short';
         }
 
-        if (count($errors)) {
+        if (!empty($errors)) {
             http_response_code(400);
-            echo json_encode($errors);
+            echo json_encode(['errors' => $errors]);
             exit();
         }
+
         return [
-            'title' => $title,
-            'description' => $description,
+            'title' => htmlspecialchars($title, ENT_QUOTES, 'UTF-8'),
+            'description' => htmlspecialchars($description, ENT_QUOTES, 'UTF-8'),
         ];
     }
 
-    public function getPosts($id) {
+    public function getPosts($id = null) {
         header("Content-Type: application/json");
+        $postModel = new Post();
         if ($id) {
-            //TODO 5-c i: get a post data by id
+            $post = $postModel->getPostById($id);
+            echo json_encode($post ?: []);
         } else {
-            //TODO 5-a: get all posts
+            $posts = $postModel->getAllPosts();
+            echo json_encode($posts);
         }
-
         exit();
     }
 
     public function savePost() {
         $inputData = [
-            'title' => $_POST['title'] ? $_POST['title'] : false,
-            'description' => $_POST['description'] ? $_POST['description'] : false,
+            'title' => $_POST['title'] ?? '',
+            'description' => $_POST['description'] ?? '',
         ];
-        $postData = $this->validatePost($inputData);
+        $validatedData = $this->validatePost($inputData);
 
-        //TODO 5-b: save a post
+        $postModel = new Post();
+        $postModel->savePost($validatedData['title'], $validatedData['description']);
 
-        http_response_code(200);
-        echo json_encode([
-            'success' => true
-        ]);
+        http_response_code(201); 
+        echo json_encode(['message' => 'Post created successfully']);
         exit();
     }
 
     public function updatePost($id) {
         if (!$id) {
             http_response_code(404);
+            echo json_encode(['message' => 'Post not found']);
             exit();
         }
 
-        //no built-in super global for PUT
         parse_str(file_get_contents('php://input'), $_PUT);
 
         $inputData = [
-            'title' => $_PUT['title'] ? $_PUT['title'] : false,
-            'description' => $_PUT['description'] ? $_PUT['description'] : false,
+            'title' => $_PUT['title'] ?? '',
+            'description' => $_PUT['description'] ?? '',
         ];
-        $postData = $this->validatePost($inputData);
+        $validatedData = $this->validatePost($inputData);
 
-        //TODO 5-c: update a post
+        $postModel = new Post();
+        $postModel->updatePost($id, $validatedData['title'], $validatedData['description']);
 
         http_response_code(200);
-        echo json_encode([
-            'success' => true
-        ]);
+        echo json_encode(['message' => 'Post updated successfully']);
         exit();
     }
 
     public function deletePost($id) {
         if (!$id) {
             http_response_code(404);
+            echo json_encode(['message' => 'Post not found']);
             exit();
         }
 
-        //TODO 5-d: delete a post
+        $postModel = new Post();
+        $postModel->deletePost($id);
 
         http_response_code(200);
-        echo json_encode([
-            'success' => true
-        ]);
+        echo json_encode(['message' => 'Post deleted successfully']);
         exit();
     }
 
+   
     public function postsView() {
         include '../public/assets/views/post/posts-view.html';
         exit();
@@ -125,6 +121,4 @@ class PostController
         include '../public/assets/views/post/posts-update.html';
         exit();
     }
-
-
 }
